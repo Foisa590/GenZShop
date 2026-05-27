@@ -1,8 +1,9 @@
 "use client";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { SITE_NAME } from "@/lib/constants";
@@ -26,25 +27,61 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/";
+  const { user, loading: authLoading } = useAuth();
+
+  // If already logged in, redirect away
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(redirect);
+    }
+  }, [user, authLoading, router, redirect]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
+    if (!email.trim() || !password.trim()) {
+      toast.error("Please fill all fields");
+      return;
+    }
+
     setLoading(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) { toast.error(error.message); return; }
-      toast.success("Welcome back!");
-      router.push(redirect);
-      router.refresh();
-    } catch {
-      toast.error("Something went wrong.");
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (error) {
+        // Better error messages
+        if (error.message.includes("Invalid login credentials")) {
+          toast.error("Wrong email or password");
+        } else if (error.message.includes("Email not confirmed")) {
+          toast.error("Please verify your email first. Check inbox for confirmation link.");
+        } else if (error.message.includes("rate limit")) {
+          toast.error("Too many attempts. Please wait a moment.");
+        } else {
+          toast.error(error.message);
+        }
+        return;
+      }
+
+      if (data.user) {
+        toast.success("Welcome back!");
+        // Force full page navigation to ensure auth context refreshes
+        window.location.href = redirect;
+      }
+    } catch (err: any) {
+      console.error("[Login] Error:", err);
+      toast.error(err?.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    if (googleLoading) return;
     setGoogleLoading(true);
     try {
       const supabase = createClient();
@@ -52,14 +89,29 @@ function LoginContent() {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
+          queryParams: { access_type: "offline", prompt: "consent" },
         },
       });
-      if (error) { toast.error(error.message); setGoogleLoading(false); }
-    } catch {
-      toast.error("Google login failed");
+      if (error) {
+        toast.error(error.message);
+        setGoogleLoading(false);
+      }
+      // Don't reset loading - browser will navigate to Google
+    } catch (err: any) {
+      console.error("[Login] Google error:", err);
+      toast.error("Google login failed. Make sure Google OAuth is configured in Supabase.");
       setGoogleLoading(false);
     }
   };
+
+  // Show loading while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-[#2874f0] border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-8">
@@ -67,13 +119,13 @@ function LoginContent() {
         <div className="bg-white rounded-sm shadow-lg overflow-hidden">
           <div className="bg-[#2874f0] p-6 sm:p-8 text-white">
             <h1 className="text-2xl font-bold mb-2">Login</h1>
-            <p className="text-sm text-blue-100">Get access to your Orders, Wishlist and Recommendations</p>
+            <p className="text-sm text-blue-100">Access your orders, wishlist & more / অর্ডার ও পছন্দের তালিকা দেখুন</p>
           </div>
           <div className="p-6 sm:p-8">
             <button
               type="button"
               onClick={handleGoogleLogin}
-              disabled={googleLoading}
+              disabled={googleLoading || loading}
               className="w-full flex items-center justify-center gap-3 py-3 border border-gray-300 rounded-sm hover:bg-gray-50 transition-colors disabled:opacity-50 mb-4"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -93,25 +145,56 @@ function LoginContent() {
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="relative">
-                <Input id="email" type="email" label="Email Address" placeholder="Enter your email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                <Mail size={16} className="absolute right-3 top-9 text-gray-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  label="Email Address"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  disabled={loading}
+                  required
+                />
+                <Mail size={16} className="absolute right-3 top-9 text-gray-400 pointer-events-none" />
               </div>
               <div className="relative">
-                <Input id="password" type={showPassword ? "text" : "password"} label="Password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-9 text-gray-400">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  label="Password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  disabled={loading}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-9 text-gray-400"
+                  tabIndex={-1}
+                >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
               <div className="text-right">
-                <Link href="/forgot-password" className="text-xs text-[#2874f0] hover:underline">Forgot Password?</Link>
+                <Link href="/forgot-password" className="text-xs text-[#2874f0] hover:underline">
+                  Forgot Password?
+                </Link>
               </div>
-              <Button type="submit" className="w-full" size="lg" loading={loading}>LOGIN</Button>
+              <Button type="submit" className="w-full" size="lg" loading={loading} disabled={googleLoading}>
+                {loading ? "LOGGING IN..." : "LOGIN"}
+              </Button>
             </form>
 
             <div className="text-center mt-6">
               <p className="text-sm text-gray-600">
                 New to {SITE_NAME}?{" "}
-                <Link href="/signup" className="text-[#2874f0] font-semibold hover:underline">Create an account</Link>
+                <Link href={`/signup${redirect !== "/" ? `?redirect=${encodeURIComponent(redirect)}` : ""}`} className="text-[#2874f0] font-semibold hover:underline">
+                  Create an account
+                </Link>
               </p>
             </div>
           </div>
