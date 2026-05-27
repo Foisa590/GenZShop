@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { User, Mail, Phone } from "lucide-react";
@@ -9,83 +10,35 @@ import { getInitials } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 export default function ProfilePage() {
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [profile, setProfile] = useState({ full_name: "", email: "", phone: "" });
+  const [form, setForm] = useState({ full_name: "", email: "", phone: "" });
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    let mounted = true;
+    if (loading) return;
 
-    (async () => {
-      try {
-        const supabase = createClient();
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (!user) {
+      router.push("/login?redirect=/dashboard");
+      return;
+    }
 
-        if (authError || !user) {
-          if (mounted) router.push("/login");
-          return;
-        }
-
-        // Use maybeSingle to avoid throwing on missing row
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error("Profile load error:", error.message);
-        }
-
-        // Auto-create profile if missing
-        if (!data) {
-          await supabase.from("profiles").insert({
-            id: user.id,
-            email: user.email,
-            full_name: user.user_metadata?.full_name || "",
-            role: "customer",
-          });
-        }
-
-        if (mounted) {
-          setProfile({
-            full_name: data?.full_name || user.user_metadata?.full_name || "",
-            email: data?.email || user.email || "",
-            phone: data?.phone || "",
-          });
-        }
-      } catch (err) {
-        console.error("Profile fetch failed:", err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-
-    // Safety timeout
-    const safetyTimer = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 5000);
-
-    return () => {
-      mounted = false;
-      clearTimeout(safetyTimer);
-    };
-  }, [router]);
+    setForm({
+      full_name: profile?.full_name || "",
+      email: profile?.email || user.email || "",
+      phone: profile?.phone || "",
+    });
+  }, [user, profile, loading, router]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     setSaving(true);
     try {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("Please login first");
-        return;
-      }
       const { error } = await supabase
         .from("profiles")
-        .update({ full_name: profile.full_name, phone: profile.phone })
+        .update({ full_name: form.full_name, phone: form.phone })
         .eq("id", user.id);
       if (error) throw error;
       toast.success("Profile updated!");
@@ -113,11 +66,11 @@ export default function ProfilePage() {
       <div className="bg-white rounded-sm shadow-sm p-4 sm:p-6">
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-[#2874f0] to-purple-600 flex items-center justify-center text-white text-lg sm:text-xl font-bold flex-shrink-0">
-            {getInitials(profile.full_name || profile.email || "U")}
+            {getInitials(form.full_name || form.email || "U")}
           </div>
           <div className="min-w-0">
-            <h1 className="text-base sm:text-lg font-bold truncate">{profile.full_name || "User"}</h1>
-            <p className="text-xs sm:text-sm text-gray-500 truncate">{profile.email}</p>
+            <h1 className="text-base sm:text-lg font-bold truncate">{form.full_name || "User"}</h1>
+            <p className="text-xs sm:text-sm text-gray-500 truncate">{form.email}</p>
           </div>
         </div>
       </div>
@@ -130,21 +83,21 @@ export default function ProfilePage() {
           <div className="relative">
             <Input
               label="Full Name / পূর্ণ নাম"
-              value={profile.full_name}
-              onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+              value={form.full_name}
+              onChange={(e) => setForm({ ...form, full_name: e.target.value })}
               placeholder="Enter your full name"
             />
             <User size={16} className="absolute right-3 top-9 text-gray-400 pointer-events-none" />
           </div>
           <div className="relative">
-            <Input label="Email" value={profile.email} disabled />
+            <Input label="Email" value={form.email} disabled />
             <Mail size={16} className="absolute right-3 top-9 text-gray-400 pointer-events-none" />
           </div>
           <div className="relative">
             <Input
               label="Phone / ফোন"
-              value={profile.phone}
-              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
               placeholder="01XXX-XXXXXX"
             />
             <Phone size={16} className="absolute right-3 top-9 text-gray-400 pointer-events-none" />
