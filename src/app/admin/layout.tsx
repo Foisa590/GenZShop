@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, Package, ShoppingBag, Users, Settings, Menu, X, Store, RefreshCw } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingBag, Users, Settings, Menu, X, Store, RefreshCw, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const NAV_ITEMS = [
@@ -17,7 +17,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const { user, profile, isAdmin, loading, refresh } = useAuth();
+  const { user, profile, isAdmin, loading, refresh, signOut } = useAuth();
 
   if (loading) {
     return (
@@ -47,26 +47,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 max-w-md w-full">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <X size={32} className="text-red-500" />
+        <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-7 max-w-md w-full">
+          <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <X size={28} className="text-red-500" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2 text-center">Access Denied</h1>
-          <p className="text-sm text-gray-500 mb-1 text-center">You don&apos;t have admin privileges</p>
+          <h1 className="text-xl font-bold text-gray-900 mb-1 text-center">Access Denied</h1>
           <p className="text-xs text-gray-400 mb-4 text-center">আপনার অ্যাডমিন অ্যাক্সেস নেই</p>
 
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
             <p className="text-xs font-semibold text-yellow-900 mb-1">Logged in as:</p>
             <p className="text-xs text-gray-700 font-mono break-all">{user.email}</p>
-            <p className="text-xs text-gray-500 mt-1">Current role: <span className="font-semibold">{profile?.role || "customer"}</span></p>
+            <p className="text-xs text-gray-500 mt-1">
+              Current role: <span className="font-semibold text-red-600">{profile?.role || "customer"}</span>
+            </p>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left mb-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left mb-3">
             <p className="text-xs font-semibold text-blue-900 mb-1">Step 1: Run this SQL in Supabase:</p>
-            <code className="block bg-white border border-blue-200 rounded p-2 mt-2 text-[10px] text-gray-700 break-all">
+            <code className="block bg-white border border-blue-200 rounded p-2 mt-1 text-[10px] text-gray-700 break-all">
               UPDATE profiles SET role=&apos;admin&apos; WHERE email=&apos;{user.email}&apos;;
             </code>
-            <p className="text-xs text-blue-700 mt-2">Step 2: Click refresh below ⬇️</p>
+            <p className="text-xs text-blue-700 mt-2 font-medium">Step 2: Click refresh below ⬇️</p>
           </div>
 
           <button
@@ -76,15 +77,37 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               setTimeout(() => setRefreshing(false), 500);
             }}
             disabled={refreshing}
-            className="w-full bg-[#2874f0] text-white py-2.5 rounded font-medium flex items-center justify-center gap-2 disabled:opacity-50 mb-2"
+            className="w-full bg-[#2874f0] hover:bg-[#1a5dc8] text-white py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 mb-2 transition-colors"
           >
             <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
             {refreshing ? "Refreshing..." : "I've Updated DB - Refresh Now"}
           </button>
 
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mt-4">
+            <p className="text-xs font-semibold text-gray-700 mb-1">⚠️ Still not working? Try this:</p>
+            <p className="text-[11px] text-gray-600 mb-2">
+              Sometimes JWT session cache needs full reset. Logout & login again.
+            </p>
+            <button
+              onClick={signOut}
+              className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium flex items-center justify-center gap-2 text-sm transition-colors"
+            >
+              <LogOut size={14} />
+              Logout & Login Again
+            </button>
+          </div>
+
+          <div className="bg-gray-100 rounded-lg p-2 mt-3 text-[10px] text-gray-500">
+            <p className="font-semibold mb-0.5">🔍 Verification SQL (run in Supabase):</p>
+            <code className="block bg-white border rounded p-1.5 mt-1 text-gray-700 break-all">
+              SELECT email, role FROM profiles WHERE email=&apos;{user.email}&apos;;
+            </code>
+            <p className="mt-1.5">If role shows &apos;customer&apos;, the UPDATE didn&apos;t run. Check email spelling.</p>
+          </div>
+
           <Link
             href="/"
-            className="block text-center text-sm text-blue-600 hover:underline"
+            className="block text-center text-sm text-blue-600 hover:underline mt-4"
           >
             ← Back to Store
           </Link>
@@ -97,7 +120,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile Header */}
       <header className="md:hidden admin-gradient text-white sticky top-0 z-30 shadow-lg">
         <div className="flex items-center justify-between px-4 h-14">
           <button onClick={() => setMobileOpen(true)} className="p-2 -ml-2">
@@ -112,7 +134,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </header>
 
       <div className="flex">
-        {/* Desktop Sidebar */}
         <aside className="w-64 admin-gradient text-white hidden md:flex flex-col fixed h-screen overflow-y-auto z-20">
           <div className="p-6 border-b border-white/10">
             <div className="flex items-center gap-3 mb-1">
@@ -125,100 +146,51 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
             </div>
           </div>
-
           <div className="px-4 py-3 border-b border-white/10">
             <p className="text-[10px] uppercase tracking-wider text-blue-200">Logged in as</p>
             <p className="text-sm font-semibold mt-0.5 truncate">{profile?.full_name || "Admin"}</p>
-            <span className="inline-block mt-1 px-2 py-0.5 bg-yellow-400 text-blue-900 text-[10px] font-bold rounded">
-              ADMIN
-            </span>
+            <span className="inline-block mt-1 px-2 py-0.5 bg-yellow-400 text-blue-900 text-[10px] font-bold rounded">ADMIN</span>
           </div>
-
           <nav className="flex-1 p-3 space-y-1">
             {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all ${
-                  isActive(item.href, item.exact)
-                    ? "bg-white text-blue-700 font-semibold shadow-lg"
-                    : "text-blue-100 hover:bg-white/10 hover:text-white"
-                }`}
-              >
+              <Link key={item.href} href={item.href} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all ${isActive(item.href, item.exact) ? "bg-white text-blue-700 font-semibold shadow-lg" : "text-blue-100 hover:bg-white/10 hover:text-white"}`}>
                 <item.icon size={18} />
                 <div className="flex-1">
                   <div>{item.label}</div>
-                  <div className={`text-[10px] ${isActive(item.href, item.exact) ? "text-blue-500" : "text-blue-300"}`}>
-                    {item.banglaLabel}
-                  </div>
+                  <div className={`text-[10px] ${isActive(item.href, item.exact) ? "text-blue-500" : "text-blue-300"}`}>{item.banglaLabel}</div>
                 </div>
               </Link>
             ))}
           </nav>
-
           <div className="p-3 border-t border-white/10">
-            <Link
-              href="/"
-              className="flex items-center gap-3 px-4 py-2.5 text-sm text-blue-100 hover:bg-white/10 hover:text-white rounded-xl transition-colors"
-            >
-              <Settings size={16} />
-              <span>Back to Store</span>
+            <Link href="/" className="flex items-center gap-3 px-4 py-2.5 text-sm text-blue-100 hover:bg-white/10 hover:text-white rounded-xl transition-colors">
+              <Settings size={16} /><span>Back to Store</span>
             </Link>
           </div>
         </aside>
 
-        {/* Mobile Drawer */}
         {mobileOpen && (
           <div className="md:hidden fixed inset-0 z-40">
             <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
             <aside className="absolute left-0 top-0 bottom-0 w-72 admin-gradient text-white overflow-y-auto animate-slide-in">
               <div className="p-5 border-b border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Store size={18} />
-                  </div>
-                  <div>
-                    <h1 className="text-sm font-bold">GenZShop</h1>
-                    <p className="text-[10px] text-blue-100">Admin Console</p>
-                  </div>
+                  <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center"><Store size={18} /></div>
+                  <div><h1 className="text-sm font-bold">GenZShop</h1><p className="text-[10px] text-blue-100">Admin Console</p></div>
                 </div>
-                <button onClick={() => setMobileOpen(false)} className="p-1.5">
-                  <X size={20} />
-                </button>
+                <button onClick={() => setMobileOpen(false)} className="p-1.5"><X size={20} /></button>
               </div>
-
-              <div className="p-4 border-b border-white/10">
-                <p className="text-[10px] uppercase text-blue-200">Logged in</p>
-                <p className="text-sm font-semibold truncate">{profile?.full_name}</p>
-              </div>
-
               <nav className="p-3 space-y-1">
                 {NAV_ITEMS.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all ${
-                      isActive(item.href, item.exact) ? "bg-white text-blue-700 font-semibold" : "text-blue-100 hover:bg-white/10"
-                    }`}
-                  >
+                  <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all ${isActive(item.href, item.exact) ? "bg-white text-blue-700 font-semibold" : "text-blue-100 hover:bg-white/10"}`}>
                     <item.icon size={18} />
-                    <div>
-                      <div>{item.label}</div>
-                      <div className="text-[10px] opacity-70">{item.banglaLabel}</div>
-                    </div>
+                    <div><div>{item.label}</div><div className="text-[10px] opacity-70">{item.banglaLabel}</div></div>
                   </Link>
                 ))}
               </nav>
-
               <div className="p-3 border-t border-white/10">
-                <Link
-                  href="/"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-blue-100 hover:bg-white/10 rounded-xl"
-                >
-                  <Settings size={16} />
-                  <span>Back to Store</span>
+                <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-blue-100 hover:bg-white/10 rounded-xl">
+                  <Settings size={16} /><span>Back to Store</span>
                 </Link>
               </div>
             </aside>

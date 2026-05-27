@@ -40,12 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
 
         if (error) {
-          console.error("Profile fetch error:", error.message);
+          console.error("[AuthProvider] Profile fetch error:", error.message);
           return null;
         }
 
         if (!data) {
-          const { data: newProfile } = await supabase
+          console.log("[AuthProvider] Profile not found, creating...");
+          const { data: newProfile, error: insertError } = await supabase
             .from("profiles")
             .insert({
               id: userId,
@@ -56,12 +57,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             })
             .select("id, email, full_name, role, avatar_url, phone")
             .maybeSingle();
-          return newProfile || null;
+
+          if (insertError) {
+            console.error("[AuthProvider] Profile create error:", insertError.message);
+          }
+          return newProfile || { id: userId, email: userEmail, full_name: "", role: "customer" };
         }
 
+        console.log("[AuthProvider] Profile loaded - role:", data.role);
         return data;
       } catch (err) {
-        console.error("Profile error:", err);
+        console.error("[AuthProvider] Profile fatal error:", err);
         return null;
       }
     },
@@ -71,7 +77,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     try {
       const supabase = createClient();
+
+      // CRITICAL: Refresh session first to invalidate JWT cache
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        console.error("[AuthProvider] Session refresh error:", refreshError.message);
+      }
+
+      // Then get fresh user
       const { data: { user: currentUser } } = await supabase.auth.getUser();
+
       if (currentUser) {
         setUser(currentUser);
         const profileData = await fetchProfileData(
@@ -80,12 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           currentUser.user_metadata
         );
         setProfile(profileData);
+        console.log("[AuthProvider] Refresh complete. Role:", profileData?.role);
       } else {
         setUser(null);
         setProfile(null);
       }
     } catch (err) {
-      console.error("Refresh error:", err);
+      console.error("[AuthProvider] Refresh error:", err);
     }
   }, [fetchProfileData]);
 
@@ -94,11 +110,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const supabase = createClient();
       await supabase.auth.signOut();
     } catch (err) {
-      console.error("Sign out error:", err);
+      console.error("[AuthProvider] Sign out error:", err);
     } finally {
       setUser(null);
       setProfile(null);
       if (typeof window !== "undefined") {
+        // Clear all Supabase cached data from localStorage
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith("sb-") || key.includes("supabase")) {
+            localStorage.removeItem(key);
+          }
+        });
         window.location.href = "/";
       }
     }
@@ -126,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (mounted) setProfile(profileData);
         }
       } catch (err) {
-        console.error("Auth init error:", err);
+        console.error("[AuthProvider] Init error:", err);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -136,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const safetyTimer = setTimeout(() => {
       if (mounted) {
-        console.warn("Auth safety timeout reached");
+        console.warn("[AuthProvider] Safety timeout reached");
         setLoading(false);
       }
     }, 4000);
