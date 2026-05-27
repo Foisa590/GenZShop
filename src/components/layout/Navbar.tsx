@@ -7,7 +7,6 @@ import { Search, ShoppingCart, Heart, User, Menu, X, ChevronDown, Package, MapPi
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { useAuth } from "@/hooks/useAuth";
-import { createClient } from "@/lib/supabase/client";
 import { NAV_LINKS, SITE_NAME } from "@/lib/constants";
 import { getInitials } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -17,7 +16,7 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const router = useRouter();
-  const { user, profile, isAdmin, loading } = useAuth();
+  const { user, profile, isAdmin, loading, signOut } = useAuth();
   const totalItems = useCartStore((s) => s.getTotalItems());
   const wishlistCount = useWishlistStore((s) => s.items.length);
 
@@ -31,12 +30,9 @@ export function Navbar() {
   };
 
   const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    toast.success("Logged out successfully");
     setShowUserMenu(false);
-    router.push("/");
-    router.refresh();
+    toast.success("Logging out...");
+    await signOut();
   };
 
   const userName = profile?.full_name || user?.email?.split("@")[0] || "User";

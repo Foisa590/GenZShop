@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -20,6 +21,7 @@ const PAYMENT_METHODS = [
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const { items, getTotalPrice, getTotalSavings, clearCart } = useCartStore();
   const [step, setStep] = useState(1);
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -39,45 +41,78 @@ export default function CheckoutPage() {
   const finalAmount = totalPrice + deliveryFee;
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.push("/login?redirect=/checkout");
+      return;
+    }
+
+    let mounted = true;
     (async () => {
       try {
         const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { router.push("/login?redirect=/checkout"); return; }
-        const { data } = await supabase.from("addresses").select("*").eq("user_id", user.id).order("is_default", { ascending: false });
-        setAddresses(data || []);
-        if (data && data.length > 0) setSelectedAddress(data[0]);
-      } catch {} finally { setLoading(false); }
+        const { data, error } = await supabase
+          .from("addresses")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("is_default", { ascending: false });
+        if (error) console.error("Address load error:", error.message);
+        if (mounted) {
+          setAddresses(data || []);
+          if (data && data.length > 0) setSelectedAddress(data[0]);
+        }
+      } catch (err) {
+        console.error("Checkout load error:", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     })();
-  }, [router]);
+
+    const safetyTimer = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 5000);
+
+    return () => {
+      mounted = false;
+      clearTimeout(safetyTimer);
+    };
+  }, [user, authLoading, router]);
 
   const saveNewAddr = async () => {
+    if (!user) return;
     try {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from("addresses").insert({
+      const { data, error } = await supabase.from("addresses").insert({
         ...newAddr, address_line2: "", user_id: user.id, is_default: addresses.length === 0
       }).select().single();
+      if (error) throw error;
       if (data) {
         setAddresses([...addresses, data]);
         setSelectedAddress(data);
         setShowNew(false);
         toast.success("Address saved!");
       }
-    } catch { toast.error("Failed"); }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed");
+    }
   };
 
   const placeOrder = async () => {
-    if (!selectedAddress) { toast.error("Select address"); return; }
+    if (!user) {
+      toast.error("Please login");
+      return;
+    }
+    if (!selectedAddress) {
+      toast.error("Select address");
+      return;
+    }
     if (paymentMethod !== "cod" && !transactionId.trim()) {
-      toast.error("Please enter your transaction ID"); return;
+      toast.error("Please enter your transaction ID");
+      return;
     }
     setPlacing(true);
     try {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
       const { data: order, error } = await supabase.from("orders").insert({
         user_id: user.id,
         total_amount: finalAmount,
@@ -108,7 +143,7 @@ export default function CheckoutPage() {
     </div>
   );
 
-  if (loading) return (
+  if (authLoading || loading) return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="bg-white rounded-sm shadow-sm p-8 animate-pulse"><div className="h-6 w-48 bg-gray-200 rounded" /></div>
     </div>
