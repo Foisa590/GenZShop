@@ -268,3 +268,39 @@ Tumi (Admin):
 - `/admin` route e products add/edit/delete kora
 - `/admin/orders` e orders manage kora
 - `/admin/users` e customers dekha
+
+
+
+---
+
+## 🔧 Fix: Admin Order Status Update (যদি কাজ না করে)
+
+Yodi admin panel-e order status (Confirmed/Shipped/Delivered) update korle automatic Pending hoye jay, ei step-gulo follow koro:
+
+### Step 1: Verify You're Admin
+Supabase SQL Editor-e run koro:
+```sql
+SELECT id, email, role FROM profiles WHERE email = 'your-email@example.com';
+```
+
+Ekhane `role` column-e `admin` thakte hobe. Na thakle:
+```sql
+UPDATE profiles SET role = 'admin' WHERE email = 'your-email@example.com';
+```
+
+### Step 2: RLS Policies Reset Koro
+Repository theke `supabase-rls-fix.sql` file-er content copy kore SQL Editor-e run koro. Eta:
+- Old policies drop kore
+- Notun policies create kore with proper `WITH CHECK` clause
+- SELECT after UPDATE permission ensure kore
+
+### Step 3: Browser Refresh
+Logout → Login again → Go to `/admin/orders` → Try updating status. Now kaj korbe.
+
+### Step 4: Browser Console Check Koro
+Update na hole F12 (Developer Tools) → Console tab → Error message dekho.
+
+Error common karon:
+- `permission denied for table orders` → RLS policy issue, Step 2 koro
+- `new row violates row-level security` → User admin na, Step 1 koro
+- `JWT expired` → Logout kore abar login koro
