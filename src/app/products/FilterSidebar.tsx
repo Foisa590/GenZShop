@@ -8,7 +8,7 @@ interface Props { categories: any[]; currentFilters: Record<string, string | und
 export function FilterSidebar(props: Props) { return <Suspense fallback={<aside className="hidden md:block w-64" />}><Inner {...props} /></Suspense>; }
 
 const BRANDS = ["Apple", "Samsung", "Sony", "Nike", "Levi's", "IKEA", "Xiaomi", "boAt", "The Ordinary"];
-const PRICE_RANGES = [{ label: "Under ₹500", min: 0, max: 500 }, { label: "₹500 - ₹1,000", min: 500, max: 1000 }, { label: "₹1,000 - ₹5,000", min: 1000, max: 5000 }, { label: "₹5,000 - ₹20,000", min: 5000, max: 20000 }, { label: "₹20,000+", min: 20000, max: 999999 }];
+const PRICE_RANGES = [{ label: "Under ৳500", min: 0, max: 500 }, { label: "৳500 - ৳2,000", min: 500, max: 2000 }, { label: "৳2,000 - ৳10,000", min: 2000, max: 10000 }, { label: "৳10,000 - ৳50,000", min: 10000, max: 50000 }, { label: "৳50,000+", min: 50000, max: 9999999 }];
 
 function Inner({ categories, currentFilters }: Props) {
   const router = useRouter(); const searchParams = useSearchParams(); const [showMobile, setShowMobile] = useState(false);

@@ -11,7 +11,7 @@ export default function CartPage() {
   const { items, removeItem, updateQuantity, getTotalPrice, getTotalSavings, clearCart } = useCartStore();
   const totalPrice = getTotalPrice();
   const totalSavings = getTotalSavings();
-  const deliveryFee = totalPrice >= 499 ? 0 : 40;
+  const deliveryFee = totalPrice >= 1000 ? 0 : 60;
   const finalAmount = totalPrice + deliveryFee;
 
   if (items.length === 0) return <div className="max-w-4xl mx-auto px-4 py-8"><EmptyState icon={<ShoppingCart size={80} className="text-gray-300" />} title="Your cart is empty!" description="Explore our products and find something you love." actionLabel="Shop Now" actionHref="/products" /></div>;
