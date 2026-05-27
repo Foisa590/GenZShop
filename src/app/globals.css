@@ -14,23 +14,54 @@
   --border: #e0e0e0;
 }
 
-* { box-sizing: border-box; }
-body { background-color: var(--background); color: var(--foreground); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+@theme inline {
+  --font-sans: var(--font-bengali), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-bengali), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #f1f1f1; }
 ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes pulseGlow { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 .animate-fade-in { animation: fadeIn 0.3s ease-out; }
 .animate-slide-in { animation: slideIn 0.3s ease-out; }
-.animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-slide-up { animation: slideUp 0.3s ease-out; }
+.animate-pulse-glow { animation: pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 
 .product-card { transition: box-shadow 0.2s ease, transform 0.2s ease; }
 .product-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); transform: translateY(-2px); }
 
-.badge-discount { background-color: var(--success); color: white; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 2px; }
+.badge-discount { background-color: var(--success); color: white; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 2px; }
+
+/* Hide scrollbars on horizontal scroll containers */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Mobile-friendly touch targets */
+@media (max-width: 640px) {
+  button, a { min-height: 36px; }
+}
+
+/* Bangla text styling */
+.bangla { font-family: var(--font-bengali), sans-serif; }
+
+/* Admin panel gradient */
+.admin-gradient { background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%); }
+.admin-card-gradient { background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(99, 102, 241, 0.05) 100%); }
