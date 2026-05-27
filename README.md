@@ -137,3 +137,28 @@ GenZShop/
 ## License
 
 MIT
+
+
+## Setting Up Google OAuth (Optional)
+
+To enable "Continue with Google" login:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project → Enable **Google+ API**
+3. Go to **Credentials** → Create **OAuth 2.0 Client ID**
+4. Application type: **Web application**
+5. Add Authorized redirect URI: `https://YOUR-PROJECT.supabase.co/auth/v1/callback`
+6. Copy `Client ID` and `Client Secret`
+7. In Supabase Dashboard → **Authentication → Providers → Google** → Enable & paste credentials
+8. Save. Done!
+
+## Payment Methods Supported
+
+The checkout supports **5 payment options** popular in Bangladesh:
+- 📱 **bKash** - Mobile banking
+- 💰 **Nagad** - Mobile banking
+- 🚀 **Rocket** - Dutch-Bangla mobile banking
+- 💳 **Upay** - UCB digital wallet
+- 💵 **Cash on Delivery (COD)**
+
+For mobile banking, customers send money to your merchant number and enter the Transaction ID. To set your merchant numbers, edit `PAYMENT_METHODS` in `src/app/checkout/page.tsx`.
